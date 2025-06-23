@@ -1,0 +1,40 @@
+name: Pokémon Card Scraper
+
+on:
+  schedule:
+    - cron: '0 12 * * 1-5'  # 12PM UTC, Mon-Fri
+  workflow_dispatch:
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t scraper .
+
+      - name: Run scraper
+        run: |
+          mkdir -p ./scraper_output
+          docker run \
+            --shm-size=2g \
+            -e GITHUB_ACTIONS=true \
+            -v "$(pwd)/scraper_output:/app/output" \
+            scraper
+
+      - name: Upload results
+        uses: actions/upload-artifact@v3
+        with:
+          name: pokemon-cards-$(date +%Y%m%d)
+          path: scraper_output/*.csv
+          retention-days: 7
+
+      - name: Show debug info
+        if: always()
+        run: |
+          echo "=== Files in scraper_output ==="
+          ls -lh scraper_output
+          echo "=============================="
